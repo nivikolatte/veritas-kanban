@@ -566,6 +566,14 @@ vk agents:pending
 }
 ```
 
+**After adding the config, restart OpenClaw:**
+
+```bash
+openclaw gateway restart
+```
+
+Verify discovery with `openclaw mcp list`. See [Troubleshooting](docs/TROUBLESHOOTING.md#mcp-server-connection-issues) if the server doesn't appear.
+
 ## 📄 Task Format
 
 Tasks are markdown files with YAML frontmatter:
