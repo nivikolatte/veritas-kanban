@@ -424,48 +424,112 @@ Build the MCP server first: `cd mcp && pnpm build`
 
 **1. Restart OpenClaw after MCP config changes**
 
-MCP servers are discovered at startup. After adding or modifying the config, restart the OpenClaw gateway:
+MCP servers are discovered at gateway startup, not dynamically. After adding or modifying the MCP server configuration in your `claude_desktop_config.json` or OpenClaw config, you **must** restart the OpenClaw gateway:
 
 ```bash
+# Restart the OpenClaw gateway
 openclaw gateway restart
+
+# Verify gateway is running
+openclaw gateway status
+
+# Check gateway logs for MCP discovery errors (if any)
+tail -f ~/.openclaw/logs/gateway.log
 ```
+
+**Common mistakes:**
+
+- Editing config but forgetting to restart → MCP server won't appear
+- Restarting just Claude Desktop/Cursor → doesn't reload OpenClaw's MCP registry
+- Config syntax errors → check logs for JSON parsing errors
 
 **2. Verify MCP discovery and tools after restart**
 
-Check that Veritas Kanban appears in the MCP server list:
+After restarting, confirm that Veritas Kanban was successfully discovered and all tools are available:
 
 ```bash
 # List all discovered MCP servers
 openclaw mcp list
 
-# Should show "veritas-kanban" with 26 tools
+# Expected output should include:
+# veritas-kanban | 26 tools | http://localhost:3001
+
+# View available tools from Veritas Kanban
+openclaw mcp tools veritas-kanban
+
+# Test a specific tool (should return JSON schema)
+openclaw mcp describe veritas-kanban vk_list_tasks
 ```
 
-If the server doesn't appear, check the MCP server logs for errors (see diagnostics below).
+**If Veritas Kanban doesn't appear in the list:**
+
+- Verify the MCP server config path is absolute (not relative): `/Users/you/path/to/veritas-kanban/mcp/dist/index.js`
+- Check that `mcp/dist/index.js` exists: `ls -la /path/to/veritas-kanban/mcp/dist/`
+- Build the MCP server if missing: `cd mcp && pnpm build`
+- Check OpenClaw logs for startup errors: `~/.openclaw/logs/mcp.log`
+
+**If the tool count is wrong (not 26 tools):**
+
+- MCP server may have started but failed to initialize properly
+- Check VK API is accessible: `curl http://localhost:3001/api/health`
+- Verify API key is set in MCP config env vars
+- Review MCP server logs for initialization errors
 
 **3. Gather diagnostics bundle when reporting issues**
 
-If MCP connection fails, collect this information to share when [reporting an issue](https://github.com/BradGroux/veritas-kanban/issues):
+If MCP connection fails after following steps 1-2, collect this full diagnostics bundle to share when [reporting an issue](https://github.com/BradGroux/veritas-kanban/issues):
 
 ```bash
-# OpenClaw version
-openclaw --version
+# === System & Version Info ===
+echo "=== OpenClaw Version ===" && openclaw --version
+echo "=== Node.js Version ===" && node -v
+echo "=== OS Info ===" && uname -a
 
-# Veritas Kanban version and health
-curl -s http://localhost:3001/api/health
+# === Veritas Kanban Health ===
+echo "=== VK Health Check ===" && curl -s http://localhost:3001/api/health | jq .
+echo "=== VK Version ===" && cat ~/Projects/veritas-kanban/package.json | jq -r '.version'
 
-# MCP server logs (location varies by platform)
+# === MCP Discovery Status ===
+echo "=== MCP Server List ===" && openclaw mcp list
+echo "=== VK MCP Tools ===" && openclaw mcp tools veritas-kanban || echo "Server not discovered"
+
+# === OpenClaw Logs (MCP specific) ===
+echo "=== MCP Server Logs (last 50 lines) ==="
 # macOS/Linux:
-tail -n 50 ~/.openclaw/logs/mcp.log
+tail -n 50 ~/.openclaw/logs/mcp.log 2>/dev/null || echo "MCP log not found"
 
-# Windows:
-Get-Content $env:USERPROFILE\.openclaw\logs\mcp.log -Tail 50
+# Windows (PowerShell):
+# Get-Content $env:USERPROFILE\.openclaw\logs\mcp.log -Tail 50
 
-# Verify VK API is accessible
-curl -s -H "X-API-Key: your-admin-key" http://localhost:3001/api/tasks
+# === Gateway Logs ===
+echo "=== Gateway Logs (last 50 lines) ==="
+tail -n 50 ~/.openclaw/logs/gateway.log 2>/dev/null || echo "Gateway log not found"
+
+# === MCP Config Validation ===
+echo "=== MCP Config (sanitized) ==="
+# macOS:
+cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq '.mcpServers["veritas-kanban"]' || echo "Config not found"
+
+# Linux:
+cat ~/.config/claude/claude_desktop_config.json | jq '.mcpServers["veritas-kanban"]' 2>/dev/null || echo "Config not found"
+
+# === API Accessibility Test ===
+echo "=== VK API Access Test ==="
+curl -s -H "X-API-Key: test-key" http://localhost:3001/api/tasks | head -c 200
+
+# === MCP Server File Check ===
+echo "=== MCP Server Files ==="
+ls -lh ~/Projects/veritas-kanban/mcp/dist/index.js 2>/dev/null || echo "MCP server not built"
 ```
 
-Include the output of all commands above when reporting the issue.
+**When reporting an issue, include:**
+
+1. Full output from the diagnostics commands above
+2. Your sanitized MCP config (remove sensitive API keys)
+3. Steps to reproduce the connection failure
+4. Expected vs actual behavior
+
+**Privacy note:** The diagnostics bundle may contain local paths and usernames. Review and redact sensitive information before sharing publicly.
 
 ---
 
