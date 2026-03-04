@@ -574,6 +574,18 @@ openclaw gateway restart
 
 Verify discovery with `openclaw mcp list`. See [Troubleshooting](docs/TROUBLESHOOTING.md#mcp-server-connection-issues) if the server doesn't appear.
 
+**Troubleshooting MCP connection issues:**
+
+- **Always restart OpenClaw after MCP config changes** — MCP servers are discovered at startup
+- **Verify tools are available:** Run `openclaw mcp list` to confirm 26 Veritas Kanban tools appear
+- **When reporting issues, provide:**
+  - OpenClaw version (`openclaw --version`)
+  - VK version and health (`curl http://localhost:3001/api/health`)
+  - MCP logs (`~/.openclaw/logs/mcp.log` on macOS/Linux)
+  - API accessibility test (`curl -H "X-API-Key: your-key" http://localhost:3001/api/tasks`)
+
+See [full MCP troubleshooting guide](docs/TROUBLESHOOTING.md#mcp-server-connection-issues) for details.
+
 ## 📄 Task Format
 
 Tasks are markdown files with YAML frontmatter:
